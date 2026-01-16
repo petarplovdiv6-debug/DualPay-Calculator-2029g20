@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DualPay Calculator</title>
+    
+    <!-- PWA Settings for iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DualPay">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9244/9244587.png">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22DualPay%20Calculator%22,%22short_name%22:%22DualPay%22,%22start_url%22:%22index.html%22,%22display%22:%22standalone%22,%22background_color%22:%22#0f172a%22,%22theme_color%22:%22#003399%22,%22icons%22:[{%22src%22:%22https://cdn-icons-png.flaticon.com/512/9244/9244587.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22,%22purpose%22:%22any%20maskable%22}]}">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --fixed-rate: 1.95583;
+            --eu-blue: #003399;
+            --eu-gold: #FFCC00;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a; 
+        }
+
+        .background-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -2;
+            display: flex;
+            flex-direction: row; 
+            background: var(--eu-blue);
+        }
+
+        .bg-stripe {
+            position: absolute;
+            right: 0;
+            width: 50%; 
+            height: 33.33%;
+            z-index: -1;
+        }
+
+        .bg-white-stripe {
+            top: 0;
+            background: linear-gradient(to right, transparent 0%, #ffffff 20%);
+        }
+
+        .bg-green-stripe {
+            top: 33.33%;
+            background: linear-gradient(to right, transparent 0%, #00966E 20%);
+        }
+
+        .bg-red-stripe {
+            top: 66.66%;
+            background: linear-gradient(to right, transparent 0%, #D62612 20%);
+        }
+
+        .floating-symbol {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 900;
+            color: white;
+            user-select: none;
+            animation: drift var(--duration) linear infinite alternate;
+            opacity: var(--op);
+            white-space: nowrap;
+        }
+
+        @keyframes drift {
+            from { transform: translate(0, 0) rotate(0deg); }
+            to { transform: translate(var(--mx), var(--my)) rotate(var(--rot)); }
+        }
+
+        .eu-stars-circle {
+            position: absolute;
+            top: 50%;
+            left: 25%;
+            transform: translate(-50%, -50%);
+            width: 240px;
+            height: 240px;
+            opacity: 0.4;
+            filter: drop-shadow(0 0 10px rgba(255, 204, 0, 0.4));
+            z-index: 2;
+        }
+
+        .app-window {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 50px 120px -30px rgba(0, 0, 0, 0.9);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 2.5rem;
+            z-index: 10;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 640px) {
+            .app-window {
+                width: 85%;
+                padding: 1.5rem;
+                max-height: 80vh;
+            }
+            .eu-stars-circle {
+                width: 180px;
+                height: 180px;
+                left: 20%;
+            }
+        }
+
+        .coin-box {
+            width: 100px;
+            height: 100px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            filter: drop-shadow(0 15px 40px rgba(0,0,0,0.8));
+        }
+
+        .coin-box:hover {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .arrow-indicator {
+            font-size: 1.2rem;
+            color: #60a5fa;
+            animation: arrow-bounce 1.5s infinite;
+        }
+
+        @keyframes arrow-bounce {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+
+        input:focus { outline: none; background: white !important; color: black !important; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .reset-btn {
+            transition: all 0.3s ease;
+            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+        .reset-btn:hover {
+            opacity: 1 !important;
+            transform: translateY(-1px);
+        }
+
+        .coin-label {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            opacity: 0.6;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="background-container" id="main-bg">
+        <div class="bg-stripe bg-white-stripe"></div>
+        <div class="bg-stripe bg-green-stripe"></div>
+        <div class="bg-stripe bg-red-stripe"></div>
+        
+        <svg class="eu-stars-circle" viewBox="0 0 100 100">
+            <defs>
+                <polygon id="star-bg" points="0,-6 1.4,-1.8 6,-1.8 2.3,1 3.7,5.5 0,2.7 -3.7,5.5 -2.3,1 -6,-1.8 -1.4,-1.8" fill="var(--eu-gold)" />
+            </defs>
+            <g transform="translate(50,50)">
+                <use xlink:href="#star-bg" transform="translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(30) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(60) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(90) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(120) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(150) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(180) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(210) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(240) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(270) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(300) translate(0,-35)" />
+                <use xlink:href="#star-bg" transform="rotate(330) translate(0,-35)" />
+            </g>
+        </svg>
+    </div>
+
+    <div class="app-window text-white text-center">
+        <header class="mb-6">
+            <div class="flex items-center justify-center gap-2 bg-black/40 p-4 rounded-[2.5rem] border border-white/10 mb-4 shadow-inner relative overflow-hidden">
+                
+                <!-- EURO COIN WITH STARS -->
+                <div class="flex flex-col items-center">
+                    <div class="coin-box">
+                        <svg viewBox="0 0 100 100">
+                            <defs>
+                                <linearGradient id="goldRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#fffde7" />
+                                    <stop offset="25%" style="stop-color:#fde047" />
+                                    <stop offset="50%" style="stop-color:#a16207" />
+                                    <stop offset="75%" style="stop-color:#854d0e" />
+                                    <stop offset="100%" style="stop-color:#422006" />
+                                </linearGradient>
+                                <linearGradient id="silverCenter" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f8fafc" />
+                                    <stop offset="30%" style="stop-color:#cbd5e1" />
+                                    <stop offset="60%" style="stop-color:#475569" />
+                                    <stop offset="100%" style="stop-color:#1e293b" />
+                                </linearGradient>
+                                <filter id="coinRelief">
+                                    <feGaussianBlur in="SourceAlpha" stdDeviation="0.4" result="blur"/>
+                                    <feSpecularLighting in="blur" surfaceScale="6" specularConstant="1.2" specularExponent="35" lighting-color="#ffffff" result="light">
+                                        <fePointLight x="-60" y="-60" z="100"/>
+                                    </feSpecularLighting>
+                                    <feComposite in="light" in2="SourceAlpha" operator="in" result="lightIn"/>
+                                    <feComposite in="SourceGraphic" in2="lightIn" operator="arithmetic" k2="1" k3="0.9"/>
+                                </filter>
+                                <polygon id="small-star" points="0,-2 0.5,-0.6 2,-0.6 0.8,0.3 1.2,1.8 0,0.9 -1.2,1.8 -0.8,0.3 -2,-0.6 -0.5,-0.6" fill="#422006" opacity="0.6" />
+                            </defs>
+                            <circle cx="50" cy="50" r="48" fill="url(#goldRing)" filter="url(#coinRelief)"/>
+                            <g transform="translate(50,50)">
+                                <use xlink:href="#small-star" transform="translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(30) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(60) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(90) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(120) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(150) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(180) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(210) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(240) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(270) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(300) translate(0,-41)" />
+                                <use xlink:href="#small-star" transform="rotate(330) translate(0,-41)" />
+                            </g>
+                            <circle cx="50" cy="50" r="33" fill="url(#silverCenter)" filter="url(#coinRelief)" stroke="#475569" stroke-width="0.8"/>
+                            <text x="32" y="66" font-family="Arial Black" font-size="36" fill="#1e293b" filter="url(#coinRelief)" style="letter-spacing:-3px">1</text>
+                            <text x="52" y="52" font-family="Arial Black" font-size="7" fill="#1e293b" opacity="0.7">EURO</text>
+                        </svg>
+                    </div>
+                    <div class="coin-label">Европа</div>
+                </div>
+
+                <div class="arrow-indicator">↔</div>
+
+                <!-- BGN COIN -->
+                <div class="flex flex-col items-center">
+                    <div class="coin-box">
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="48" fill="url(#silverCenter)" filter="url(#coinRelief)"/>
+                            <circle cx="50" cy="50" r="33" fill="url(#goldRing)" filter="url(#coinRelief)" stroke="#854d0e" stroke-width="0.8"/>
+                            <text x="50" y="58" font-family="Times New Roman, serif" font-size="42" font-weight="900" fill="#422006" text-anchor="middle" filter="url(#coinRelief)">1</text>
+                            <text x="50" y="76" font-family="Times New Roman, serif" font-size="11" font-weight="900" fill="#422006" text-anchor="middle" filter="url(#coinRelief)" style="letter-spacing:1px">ЛЕВ</text>
+                        </svg>
+                    </div>
+                    <div class="coin-label">България</div>
+                </div>
+            </div>
+            <h1 class="text-2xl font-bold" style="font-family: 'Comfortaa'">DualPay Calculator</h1>
+            <p class="text-[9px] opacity-40 tracking-[0.3em] uppercase font-black mt-1">Интелигентно ресто</p>
+        </header>
+
+        <div class="space-y-4">
+            <div class="text-left">
+                <label class="text-[9px] font-black opacity-40 uppercase tracking-widest ml-2 mb-1 block">Сума за плащане</label>
+                <div class="flex bg-white rounded-xl overflow-hidden shadow-2xl">
+                    <input type="number" id="price" placeholder="0.00" step="0.01" inputmode="decimal"
+                           class="w-full p-3 text-gray-900 text-2xl font-black bg-transparent">
+                    <select id="price-currency" class="bg-blue-600 px-3 font-black text-xs text-white cursor-pointer">
+                        <option value="BGN">ЛВ</option>
+                        <option value="EUR">€</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="text-left">
+                    <label class="text-[9px] font-black opacity-40 uppercase tracking-widest ml-2 mb-1 block">Платено (ЛВ)</label>
+                    <input type="number" id="paid-bgn" placeholder="0.00" step="0.01" inputmode="decimal"
+                           class="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white font-bold focus:bg-white focus:text-black transition-all">
+                </div>
+                <div class="text-left">
+                    <label class="text-[9px] font-black opacity-40 uppercase tracking-widest ml-2 mb-1 block">Платено (€)</label>
+                    <input type="number" id="paid-eur" placeholder="0.00" step="0.01" inputmode="decimal"
+                           class="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white font-bold focus:bg-white focus:text-black transition-all">
+                </div>
+            </div>
+            
+            <button onclick="resetCalculator()" class="reset-btn text-[8px] font-black opacity-30 uppercase tracking-[0.2em] flex items-center justify-center gap-2 mx-auto py-2 px-4 rounded-full border border-white/10 hover:border-white/30">
+                <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Нулиране
+            </button>
+        </div>
+
+        <div id="error-box" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 text-[10px] rounded-xl font-bold">
+            Сумата не достига! ⚠️
+        </div>
+
+        <div id="result-section" class="mt-6 opacity-0 scale-95 transition-all duration-500">
+            <div class="bg-white/5 p-6 rounded-[2rem] border border-white/10 shadow-2xl">
+                <div id="main-change" class="text-5xl font-black text-white leading-tight">0.00</div>
+                <div id="main-change-symbol" class="text-[10px] font-black opacity-30 tracking-[0.4em] uppercase mt-1">BGN</div>
+                
+                <div class="flex gap-2 mt-4">
+                    <button id="btn-bgn" onclick="setChangeCurrency('BGN')" class="flex-1 py-2 rounded-lg text-[9px] font-black transition-all">В ЛЕВОВЕ</button>
+                    <button id="btn-eur" onclick="setChangeCurrency('EUR')" class="flex-1 py-2 rounded-lg text-[9px] font-black transition-all">В ЕВРО</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-8 space-y-2">
+            <p class="text-[9px] italic opacity-50 leading-relaxed max-w-[240px] mx-auto font-medium">
+                „Златният лъв склопява очи, за да остане вечен сън в паметта на нашия народ...“
+            </p>
+            <div class="opacity-20 text-[7px] uppercase font-black tracking-[0.2em] flex flex-col gap-1">
+                <span>Курс: 1 EUR = 1.95583 BGN</span>
+                <span>Precision Exchange System v3.7 &bull; 2026</span>
+                <span class="mt-1 text-[8px] opacity-100">&copy; P. Petrov</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const RATE = 1.95583;
+        let changeCurrency = 'BGN';
+
+        // PWA functionality with improved offline cache
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    const CACHE_NAME = 'dualpay-v6';
+                    const ASSETS = ['./', './index.html', 'https://cdn.tailwindcss.com'];
+                    self.addEventListener('install', (e) => {
+                        e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+                        self.skipWaiting();
+                    });
+                    self.addEventListener('activate', (e) => {
+                        e.waitUntil(caches.keys().then(keys => Promise.all(
+                            keys.map(k => k !== CACHE_NAME ? caches.delete(k) : null)
+                        )));
+                    });
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(workerUrl).catch(() => {});
+            });
+        }
+
+        function spawnSymbols() {
+            const container = document.getElementById('main-bg');
+            if(!container) return;
+            const euElements = ['€', '2004', '2007', '2024'];
+            const bgElements = ['лв', '681', '864', '1878', '1885'];
+            for (let i = 0; i < 50; i++) {
+                const span = document.createElement('span');
+                span.className = 'floating-symbol';
+                const isLeft = Math.random() < 0.5;
+                const pool = isLeft ? euElements : bgElements;
+                span.innerText = pool[Math.floor(Math.random() * pool.length)];
+                span.style.fontSize = `${Math.random() * 10 + 12}px`;
+                span.style.top = `${Math.random() * 100}%`;
+                span.style.left = isLeft ? `${Math.random() * 45}%` : `${55 + Math.random() * 45}%`;
+                span.style.setProperty('--duration', `${Math.random() * 10 + 15}s`);
+                span.style.setProperty('--mx', `${(Math.random()-0.5)*100}px`);
+                span.style.setProperty('--my', `${(Math.random()-0.5)*100}px`);
+                span.style.setProperty('--rot', `${(Math.random()-0.5)*360}deg`);
+                span.style.setProperty('--op', Math.random()*0.15 + 0.05);
+                container.appendChild(span);
+            }
+        }
+
+        function resetCalculator() {
+            document.getElementById('price').value = '';
+            document.getElementById('paid-bgn').value = '';
+            document.getElementById('paid-eur').value = '';
+            calculate();
+        }
+
+        function calculate() {
+            const priceVal = parseFloat(document.getElementById('price').value) || 0;
+            const priceCurr = document.getElementById('price-currency').value;
+            const paidBgn = parseFloat(document.getElementById('paid-bgn').value) || 0;
+            const paidEur = parseFloat(document.getElementById('paid-eur').value) || 0;
+            const priceInBgn = priceCurr === 'EUR' ? priceVal * RATE : priceVal;
+            const totalPaidInBgn = paidBgn + (paidEur * RATE);
+            const diffInBgn = totalPaidInBgn - priceInBgn;
+            const errorBox = document.getElementById('error-box');
+            const resultSection = document.getElementById('result-section');
+
+            if (priceVal > 0 && totalPaidInBgn < (priceInBgn - 0.005) && (paidBgn > 0 || paidEur > 0)) {
+                errorBox.classList.remove('hidden');
+                resultSection.style.opacity = '0';
+            } else if (totalPaidInBgn >= (priceInBgn - 0.005) && priceVal > 0) {
+                errorBox.classList.add('hidden');
+                resultSection.style.opacity = '1';
+                resultSection.style.transform = 'scale(1)';
+                updateDisplay(Math.max(0, diffInBgn));
+            } else {
+                errorBox.classList.add('hidden');
+                resultSection.style.opacity = '0';
+            }
+        }
+
+        function updateDisplay(diffInBgn) {
+            const val = changeCurrency === 'BGN' ? diffInBgn : diffInBgn / RATE;
+            document.getElementById('main-change').innerText = val.toFixed(2);
+            document.getElementById('main-change-symbol').innerText = changeCurrency;
+        }
+
+        function setChangeCurrency(curr) {
+            changeCurrency = curr;
+            document.getElementById('btn-bgn').className = `flex-1 py-2 rounded-lg text-[9px] font-black transition-all ${curr === 'BGN' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/30 border border-white/5'}`;
+            document.getElementById('btn-eur').className = `flex-1 py-2 rounded-lg text-[9px] font-black transition-all ${curr === 'EUR' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/30 border border-white/5'}`;
+            calculate();
+        }
+
+        ['price', 'paid-bgn', 'paid-eur', 'price-currency'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculate);
+        });
+        
+        window.onload = () => {
+            spawnSymbols();
+            setChangeCurrency('BGN');
+        };
+    </script>
+</body>
+</html>
